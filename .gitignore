@@ -5,3 +5,4 @@ hackathon
 /media
 /static
 __pycache__/
+migrations
