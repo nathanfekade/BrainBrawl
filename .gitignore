@@ -4,3 +4,4 @@ hackathon
 *.sqlite3
 /media
 /static
+__pycache__/
