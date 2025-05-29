@@ -1,0 +1,6 @@
+hackathon
+.env
+*.log
+*.sqlite3
+/media
+/static
