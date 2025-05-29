@@ -6,3 +6,4 @@ hackathon
 /static
 __pycache__/
 migrations
+media/

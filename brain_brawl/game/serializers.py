@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from .models import Group, GroupMember, Quiz, QuizQuestion, UserGroupScore
 from rest_framework.validators import UniqueValidator  
 
+
 class UserSerializer(serializers.ModelSerializer):
 
     password = serializers.CharField(write_only=True, required=True)
@@ -92,7 +93,6 @@ class GroupSerializer(serializers.ModelSerializer):
     )
     members = GroupMemberSerializer(
         many=True, 
-        source='members', 
         read_only=True
     )
     quizzes = QuizSerializer(many=True, read_only=True)
@@ -102,8 +102,8 @@ class GroupSerializer(serializers.ModelSerializer):
         fields = ['id', 'group_name', 'creator', 'creator_id', 'file', 'members', 'quizzes']
 
     def validate_file(self, value):
-        from .validators import validate_fIle_size_and_type
-        validate_fIle_size_and_type(value)
+        from .validators import validate_file_size_and_type
+        validate_file_size_and_type(value)
         return value
 
 class UserGroupScoreSerializer(serializers.ModelSerializer):
