@@ -45,10 +45,14 @@ class UserDetail(APIView):
     
    
 
-    def get(self, request, format=None):
+    def post(self, request, format=None):
 
         serializer = UserSerializer(request.user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status= status.HTTP_400_BAD_REQUEST)
+
 
 class GroupList(APIView):
     permission_classes = [IsAuthenticated]
