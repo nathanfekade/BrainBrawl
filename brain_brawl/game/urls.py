@@ -11,6 +11,8 @@ urlpatterns = [
     path('quizzes/', views.QuizList.as_view(), name='quiz-list'),
     path('quizzes/<int:pk>/', views.QuizDetail.as_view(), name='quiz-detail'),
     path('user-group-scores/', views.UserGroupScoreList.as_view(), name='user-group-score-list'),
+    path('get-user-id/', views.UserIdByEmail.as_view(), name='user-id-by-email'),
+
 
 
 ]

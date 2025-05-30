@@ -8,7 +8,7 @@ from django.http import Http404
 from .serializers import UserSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Group, GroupMember, Quiz, QuizQuestion, UserGroupScore
-from .serializers import UserSerializer, GroupSerializer, GroupMemberSerializer, QuizSerializer, QuizQuestionSerializer, UserGroupScoreSerializer
+from .serializers import UserSerializer, GroupSerializer, GroupMemberSerializer, QuizSerializer, QuizQuestionSerializer, UserGroupScoreSerializer, EmailInputSerializer
 
 
 class UserList(APIView):
@@ -258,3 +258,19 @@ class UserGroupScoreList(APIView):
                 return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
         serializer = UserGroupScoreSerializer(scores, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class UserIdByEmail(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, format=None):
+        """Retrieve user_id by email."""
+        serializer = EmailInputSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            try:
+                user = User.objects.get(email=email)
+                return Response({"user_id": user.id}, status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                return Response({"detail": "User with this email not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

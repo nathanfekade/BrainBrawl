@@ -120,3 +120,6 @@ class UserGroupScoreSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'group': {'required': False}  
         }
+
+class EmailInputSerializer(serializers.Serializer):
+    email = serializers.EmailField()
