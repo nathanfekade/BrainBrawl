@@ -18,6 +18,8 @@ from google import genai
 import google.generativeai as generativeai
 import logging
 import json
+from pydantic import BaseModel
+
 
 
 
@@ -165,29 +167,10 @@ def under_token_limit(prompt, model_name="gemini-2.0-flash", max_tokens=1048000)
             return False, 0
 
 
-question_schema = {
-    "type": "object",
-    "properties": {
-        "questions": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "question": {"type": "string"},
-                    "options": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "minItems": 4,
-                        "maxItems": 4
-                    },
-                    "correct_answer": {"type": "string"}
-                },
-                "required": ["question", "options", "correct_answer"]
-            }
-        }
-    },
-    "required": ["questions"]
-}
+class question_schema(BaseModel):
+    question_text: str
+    options: list[str]
+    correct_answer: str
 
 def question_generator(prompt):
     client = genai.Client(api_key=os.environ.get('GEMINI_API_KEY'))
@@ -201,7 +184,11 @@ def question_generator(prompt):
         if now - last_request_time >= delay:
                 
             response = client.models.generate_content(
-                model="gemini-2.0-flash", contents=prompt
+                model="gemini-2.0-flash", contents=prompt,
+                    config={
+                    "response_mime_type": "application/json",
+                    "response_schema": list[question_schema],
+                }
             )
             cache.set('last_gemini_request_time', time.time())
             return response.text
@@ -275,7 +262,7 @@ def call_gemini_api(quiz):
     if group.file:
         file_path = group.file.path 
         value = question_detail_level(file_path, 9)
-        print(value)
+        return value
 
 
 
