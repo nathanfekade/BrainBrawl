@@ -43,7 +43,7 @@ class UserList(APIView):
 
 class UserDetail(APIView):
     
-    permission_classes = [IsAuthenticated]
+   
 
     def get(self, request, format=None):
 
