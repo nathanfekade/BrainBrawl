@@ -141,9 +141,6 @@ class GroupMemberDetail(APIView):
 
 
 def call_gemini_api(quiz):
-    # Replace this with actual Gemini API integration
-    # Example: response = requests.post('https://api.gemini.com/generate', data={'topic': quiz.group.group_name})
-    # return response.json()['questions']
     return [
         {
             "question_text": "What is the capital of France?",
@@ -172,9 +169,7 @@ class QuizList(APIView):
         if serializer.is_valid():
             quiz = serializer.save()
             try:
-                # Generate questions from Gemini API
                 questions_data = call_gemini_api(quiz)
-                # Create QuizQuestion instances
                 for question in questions_data:
                     QuizQuestion.objects.create(
                         quiz=quiz,
@@ -187,7 +182,6 @@ class QuizList(APIView):
                     {"detail": "Failed to generate questions", "error": str(e)},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-            # Return the quiz with generated questions
             serializer = QuizSerializer(quiz, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
