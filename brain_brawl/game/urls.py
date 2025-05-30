@@ -10,6 +10,7 @@ urlpatterns = [
     path('group-members/<int:group_id>/<int:user_id>/', views.GroupMemberDetail.as_view(), name='group-member-detail'),    
     path('quizzes/', views.QuizList.as_view(), name='quiz-list'),
     path('quizzes/<int:pk>/', views.QuizDetail.as_view(), name='quiz-detail'),
+    path('user-group-scores/', views.UserGroupScoreList.as_view(), name='user-group-score-list'),
 
 
 ]

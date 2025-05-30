@@ -201,3 +201,60 @@ class QuizDetail(APIView):
         quiz = self.get_object(pk)
         serializer = QuizSerializer(quiz, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+    def post(self, request, pk, format=None):
+        """Update the user's score in the group based on total points from the frontend."""
+        quiz = self.get_object(pk)
+        total_points = request.data.get('total_points')
+
+        if total_points is None:
+            return Response(
+                {"detail": "total_points is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            total_points = int(total_points)
+            if total_points < 0:
+                raise ValueError("Points cannot be negative.")
+        except ValueError:
+            return Response(
+                {"detail": "total_points must be a non-negative integer."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        score, created = UserGroupScore.objects.get_or_create(
+            group=quiz.group,
+            user=request.user,
+            defaults={'points': total_points}
+        )
+        if not created:
+            score.points += total_points
+            score.save()
+
+        return Response(
+            {"message": "Score updated successfully", "total_points_added": total_points},
+            status=status.HTTP_200_OK
+        )
+
+class UserGroupScoreList(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, format=None):
+        group_id = request.query_params.get('group')
+        user_id = request.query_params.get('user')
+        scores = UserGroupScore.objects.all()
+        if group_id:
+            try:
+                group = Group.objects.get(pk=group_id)
+                scores = scores.filter(group=group)
+            except Group.DoesNotExist:
+                return Response({"detail": "Group not found."}, status=status.HTTP_404_NOT_FOUND)
+        if user_id:
+            try:
+                user = User.objects.get(pk=user_id)
+                scores = scores.filter(user=user)
+            except User.DoesNotExist:
+                return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = UserGroupScoreSerializer(scores, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
