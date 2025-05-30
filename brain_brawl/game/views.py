@@ -4,11 +4,21 @@ from django.contrib.auth.models import User
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import serializers
 from django.http import Http404
 from .serializers import UserSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Group, GroupMember, Quiz, QuizQuestion, UserGroupScore
 from .serializers import UserSerializer, GroupSerializer, GroupMemberSerializer, QuizSerializer, QuizQuestionSerializer, UserGroupScoreSerializer, EmailInputSerializer
+import time
+from pypdf import PdfReader
+import os
+from django.core.cache import cache
+from google import genai
+import google.generativeai as generativeai
+import logging
+import json
+
 
 
 class UserList(APIView):
@@ -139,20 +149,136 @@ class GroupMemberDetail(APIView):
     #     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def under_token_limit(prompt, model_name="gemini-2.0-flash", max_tokens=1048000):
+        try:
+            generativeai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
+            
+            model = generativeai.GenerativeModel(model_name)
+            input_tokens = model.count_tokens(prompt).total_tokens
+            if input_tokens > max_tokens:
+                return False, input_tokens
+            else:
+                return True, input_tokens
+
+        except Exception as e:
+            logging.error(f"An error occured during token limit check: {e}")
+            return False, 0
+
+
+question_schema = {
+    "type": "object",
+    "properties": {
+        "questions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string"},
+                    "options": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 4,
+                        "maxItems": 4
+                    },
+                    "correct_answer": {"type": "string"}
+                },
+                "required": ["question", "options", "correct_answer"]
+            }
+        }
+    },
+    "required": ["questions"]
+}
+
+def question_generator(prompt):
+    client = genai.Client(api_key=os.environ.get('GEMINI_API_KEY'))
+    
+    while True:
+
+        last_request_time = cache.get('last_gemini_request_time', 0)
+        now = time.time()
+        delay = 4
+
+        if now - last_request_time >= delay:
+                
+            response = client.models.generate_content(
+                model="gemini-2.0-flash", contents=prompt
+            )
+            cache.set('last_gemini_request_time', time.time())
+            return response.text
+        else:
+                time.sleep(delay - (now - last_request_time))
+
+
+
+def question_detail_level(path, page_count):
+        
+        reader = PdfReader(path)
+        num_of_pages = len(reader.pages)
+        question = "Generate 5 multiple-choice questions based on the text below. Each question should have exactly 4 options. Output the questions as a JSON array, where each element is an object with the following fields: 'question' (string), 'options' (array of 4 strings), and 'correct_answer' (string, exactly matching one of the options). Ensure that the correct_answer is identical to one of the strings in the options array. Provide only the JSON array as the output, without any additional text or explanations."
+        prompt = question 
+        question_answer = ""
+        count = page_count - 1
+        all_questions = []
+
+
+        if num_of_pages <= count:
+            for i in range(num_of_pages):
+                page = reader.pages[i]
+                text = page.extract_text()
+                prompt = prompt + " " + text
+
+            if prompt.strip() == question.strip():
+                return "sorry i was unable to generate questions"
+
+            # question_answer = question_answer 
+            questions_response = json.loads(question_generator(prompt=prompt))
+            all_questions.extend(questions_response)
+            return all_questions
+
+        for i in range(num_of_pages):
+            
+            page = reader.pages[i]
+            text = page.extract_text()
+            prompt = prompt + " " + text
+
+            if i == count:
+                if under_token_limit(prompt=prompt)[0] == False:
+                        raise serializers.ValidationError("Token limit exceeded")
+                        break
+                # question_answer = question_answer + question_generator(prompt=prompt)
+                questions_response = json.loads(question_generator(prompt=prompt))
+                all_questions.extend(questions_response)
+                
+                prompt = question
+                
+                count += page_count
+
+            elif num_of_pages-1 == i and i < count:
+                if under_token_limit(prompt=prompt)[0] == False:
+                        raise serializers.ValidationError("Token limit exceeded")
+                        break
+                
+                # question_answer = question_answer + question_generator(prompt=prompt)
+                questions_response = json.loads(question_generator(prompt=prompt))
+                all_questions.extend(questions_response)
+                prompt = question
+
+                
+        return all_questions
+
+
+
 
 def call_gemini_api(quiz):
-    return [
-        {
-            "question_text": "What is the capital of France?",
-            "options": ["Paris", "London", "Berlin", "Madrid"],
-            "correct_answer": "Paris"
-        },
-        {
-            "question_text": "What is 2 + 2?",
-            "options": ["3", "4", "5", "6"],
-            "correct_answer": "4"
-        }
-    ]
+    group = quiz.group
+    file_path = None
+    if group.file:
+        file_path = group.file.path 
+        value = question_detail_level(file_path, 9)
+        print(value)
+
+
+
 
 class QuizList(APIView):
     permission_classes = [IsAuthenticated]
