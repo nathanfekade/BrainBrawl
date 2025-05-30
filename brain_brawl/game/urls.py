@@ -8,5 +8,8 @@ urlpatterns = [
     path('groups/<int:pk>/', views.GroupDetail.as_view(), name='group-detail'),
     path('group-members/', views.GroupMemberList.as_view(), name='group-member-list'),
     path('group-members/<int:group_id>/<int:user_id>/', views.GroupMemberDetail.as_view(), name='group-member-detail'),    
+    path('quizzes/', views.QuizList.as_view(), name='quiz-list'),
+    path('quizzes/<int:pk>/', views.QuizDetail.as_view(), name='quiz-detail'),
+
 
 ]

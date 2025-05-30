@@ -140,3 +140,70 @@ class GroupMemberDetail(APIView):
 
 
 
+def call_gemini_api(quiz):
+    # Replace this with actual Gemini API integration
+    # Example: response = requests.post('https://api.gemini.com/generate', data={'topic': quiz.group.group_name})
+    # return response.json()['questions']
+    return [
+        {
+            "question_text": "What is the capital of France?",
+            "options": ["Paris", "London", "Berlin", "Madrid"],
+            "correct_answer": "Paris"
+        },
+        {
+            "question_text": "What is 2 + 2?",
+            "options": ["3", "4", "5", "6"],
+            "correct_answer": "4"
+        }
+    ]
+
+class QuizList(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, format=None):
+        """List all quizzes."""
+        quizzes = Quiz.objects.all()
+        serializer = QuizSerializer(quizzes, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, format=None):
+        """Create a new quiz and generate questions via Gemini."""
+        serializer = QuizSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            quiz = serializer.save()
+            try:
+                # Generate questions from Gemini API
+                questions_data = call_gemini_api(quiz)
+                # Create QuizQuestion instances
+                for question in questions_data:
+                    QuizQuestion.objects.create(
+                        quiz=quiz,
+                        question_text=question['question_text'],
+                        options=question['options'],
+                        correct_answer=question['correct_answer']
+                    )
+            except Exception as e:
+                return Response(
+                    {"detail": "Failed to generate questions", "error": str(e)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            # Return the quiz with generated questions
+            serializer = QuizSerializer(quiz, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class QuizDetail(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        """Retrieve a quiz by ID or raise 404."""
+        try:
+            return Quiz.objects.get(pk=pk)
+        except Quiz.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk, format=None):
+        """Retrieve a specific quiz."""
+        quiz = self.get_object(pk)
+        serializer = QuizSerializer(quiz, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
